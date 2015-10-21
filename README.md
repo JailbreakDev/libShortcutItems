@@ -37,3 +37,5 @@ As easy as that :) a few lines of code enables lots of cool features.
 ## Example ###
 
 [Example Project on Github](https://github.com/sharedRoutine/test-libShortcutItems/)
+
+![libShortcutItems in action](https://pbs.twimg.com/media/CRZN8iFVEAAZe7Z.jpg)
