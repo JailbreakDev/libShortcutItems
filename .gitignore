@@ -1,0 +1,11 @@
+.DS_Store
+_
+.theos
+obj
+theos
+com.sharedroutine.libshortcutitems*
+layout/.DS_Store
+layout/DEBIAN/.DS_Store
+layout/usr/.DS_Store
+layout/usr/include/.DS_Store
+layout/usr/include/libShortcutItems/.DS_Store
