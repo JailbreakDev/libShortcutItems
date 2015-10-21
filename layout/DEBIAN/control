@@ -1,0 +1,10 @@
+Package: com.sharedroutine.libshortcutitems
+Name: libShortcutItems
+Depends: 
+Version: 0.0.1
+Architecture: iphoneos-arm
+Description: An awesome library of some sort!!
+Maintainer: Janosch
+Author: Janosch
+Section: System
+Tag: role::developer
