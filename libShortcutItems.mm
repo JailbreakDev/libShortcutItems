@@ -1,8 +1,9 @@
 #import "libShortcutItems.h"
 
-static IMP performActionForShortcutItem = NULL;
-static IMP itemsToDisplay = NULL;
 static IMP application = NULL;
+static IMP itemsToDisplay = NULL;
+static IMP performActionForShortcutItem = NULL;
+void (*oldActivateShortcutItem)(id self, SEL _cmd,SBSApplicationShortcutItem *item, SBApplication *app);
 
 @interface SBSApplicationShortcutService : NSObject
 -(void)updateDynamicApplicationShortcutItems:(NSArray <SBSApplicationShortcutItem *> *)items bundleIdentifier:(NSString *)bundleIdentifier;
@@ -46,9 +47,13 @@ static IMP application = NULL;
 			}];
 		} else {
 			_customDynamicShortcuts = [[NSMutableDictionary alloc] init];
+
 			Class menuClass = objc_getClass("SBApplicationShortcutMenu");
 			Method applicationMethod = class_getInstanceMethod(menuClass,@selector(application));
 			application = method_getImplementation(applicationMethod);
+
+			MSHookMessageEx(objc_getClass("SBIconController"), @selector(_activateShortcutItem:fromApplication:),(IMP)&activateShortcutItem,(IMP *)&oldActivateShortcutItem);
+
 			Method itemsToDisplayMethod = class_getInstanceMethod(menuClass,@selector(_shortcutItemsToDisplay));
 			itemsToDisplay = method_getImplementation(itemsToDisplayMethod);
 			Method replacementMethod = class_getInstanceMethod([self class], @selector(_shortcutItemsToDisplay));
@@ -56,6 +61,28 @@ static IMP application = NULL;
 		}
 	}
 	return self;
+}
+
+void activateShortcutItem(id self, SEL _cmd, SBSApplicationShortcutItem *item, SBApplication *app) {
+	if ([item isKindOfClass:objc_getClass("LSISBSApplicationShortcutItem")]) {
+		NSArray *itemsForApp = [[LSIManager sharedManager].customDynamicShortcuts objectForKey:[app bundleIdentifier]];
+		NSArray *filteredItems = [itemsForApp filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self.type = %@",item.type]];
+		BOOL ignoreApp = ![[LSIManager sharedManager].customDynamicShortcuts.allKeys containsObject:[app bundleIdentifier]];
+		BOOL ignoreItem = (filteredItems.count == 0);
+		if (ignoreApp || ignoreItem) {
+			(*oldActivateShortcutItem)(self, _cmd, item, app);
+			return;
+		}
+		if (((LSISBSApplicationShortcutItem *)item).isHandledBySpringBoard) {
+			if ([LSIManager sharedManager].SBShortcutHandlerBlock) {
+   				[LSIManager sharedManager].SBShortcutHandlerBlock((LSISBSApplicationShortcutItem *)item);
+   			}
+		} else {
+			(*oldActivateShortcutItem)(self, _cmd, item, app);
+		}
+	} else {
+		(*oldActivateShortcutItem)(self, _cmd, item, app);
+	}
 }
 
 -(NSArray <SBSApplicationShortcutItem *>*)_shortcutItemsToDisplay {
@@ -106,8 +133,8 @@ void lsi_performActionForShortcutItem(id self, SEL _cmd, id app, UIApplicationSh
    	}
 }
 
--(SBSApplicationShortcutItem *)newShortcutItemType:(NSString *)type title:(NSString *)title subtitle:(NSString *)subtitle icon:(SBSApplicationShortcutIcon *)icon {
-	SBSApplicationShortcutItem *item = [[objc_getClass("SBSApplicationShortcutItem") alloc] init];
+-(LSISBSApplicationShortcutItem *)newShortcutItemType:(NSString *)type title:(NSString *)title subtitle:(NSString *)subtitle icon:(SBSApplicationShortcutIcon *)icon {
+	LSISBSApplicationShortcutItem *item = [[LSISBSApplicationShortcutItem alloc] init];
 	[item setType:type];
 	[item setLocalizedTitle:title];
 	[item setLocalizedSubtitle:subtitle];
@@ -115,13 +142,13 @@ void lsi_performActionForShortcutItem(id self, SEL _cmd, id app, UIApplicationSh
 	return item;
 }
 
--(SBSApplicationShortcutItem *)newShortcutItemType:(NSString *)type title:(NSString *)title subtitle:(NSString *)subtitle iconType:(UIApplicationShortcutIconType)iconType {
-	SBSApplicationShortcutSystemIcon *icon = [objc_getClass("SBSApplicationShortcutSystemIcon") alloc];
+-(LSISBSApplicationShortcutItem *)newShortcutItemType:(NSString *)type title:(NSString *)title subtitle:(NSString *)subtitle iconType:(UIApplicationShortcutIconType)iconType {
+	SBSApplicationShortcutSystemIcon *icon = [SBSApplicationShortcutSystemIcon alloc];
 	icon = [icon initWithType:UIApplicationShortcutIconTypeCompose];
 	return [self newShortcutItemType:type title:title subtitle:subtitle icon:icon];
 }
 
--(SBSApplicationShortcutItem *)itemForType:(NSString *)type forApplication:(SBApplication *)app {
+-(LSISBSApplicationShortcutItem *)itemForType:(NSString *)type forApplication:(SBApplication *)app {
 	NSArray *filteredItems = [app.dynamicShortcutItems filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self.type = %@",type]];
 	if (filteredItems.count > 0) {
 		return [[filteredItems firstObject] copy];
@@ -129,17 +156,17 @@ void lsi_performActionForShortcutItem(id self, SEL _cmd, id app, UIApplicationSh
 	return nil;
 }
 
--(SBSApplicationShortcutItem *)itemForType:(NSString *)type forApplicationID:(NSString *)applicationID {
+-(LSISBSApplicationShortcutItem *)itemForType:(NSString *)type forApplicationID:(NSString *)applicationID {
 	SBApplication *app = [[objc_getClass("SBApplicationController") sharedInstance] applicationWithBundleIdentifier:applicationID];
 	return [self itemForType:type forApplication:app];
 }
 
--(BOOL)updateShortcutItem:(SBSApplicationShortcutItem *)item forType:(NSString *)type forApplication:(SBApplication *)app {
+-(BOOL)updateShortcutItem:(LSISBSApplicationShortcutItem *)item forType:(NSString *)type forApplication:(SBApplication *)app {
 	return [self updateShortcutItem:item forType:type forApplicationID:[app bundleIdentifier]];
 }
 
--(BOOL)updateShortcutItem:(SBSApplicationShortcutItem *)item forType:(NSString *)type forApplicationID:(NSString *)appID {
-	SBSApplicationShortcutItem *currentItem = [self itemForType:type forApplicationID:appID];
+-(BOOL)updateShortcutItem:(LSISBSApplicationShortcutItem *)item forType:(NSString *)type forApplicationID:(NSString *)appID {
+	LSISBSApplicationShortcutItem *currentItem = [self itemForType:type forApplicationID:appID];
 	if (currentItem) {
 		NSMutableArray *items = [_customDynamicShortcuts[appID] mutableCopy];
 		if (items) {
@@ -162,5 +189,10 @@ void lsi_performActionForShortcutItem(id self, SEL _cmd, id app, UIApplicationSh
 	[existingItems addObjectsFromArray:items];
 	[_customDynamicShortcuts setObject:existingItems forKey:applicationID];
 }
+
+@end
+
+@implementation LSISBSApplicationShortcutItem
+@synthesize handledBySpringBoard;
 
 @end
