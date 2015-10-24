@@ -5,6 +5,7 @@ include theos/makefiles/common.mk
 LIBRARY_NAME = libShortcutItems
 libShortcutItems_FILES = libShortcutItems.mm
 libShortcutItems_FRAMEWORKS = UIKit
+libShortcutItems_LIBRARIES = substrate
 libShortcutItems_CFLAGS += -fobjc-arc
 libShortcutItems_PRIVATE_FRAMEWORKS = SpringBoardServices
 
