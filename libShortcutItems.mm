@@ -5,17 +5,9 @@ static IMP itemsToDisplay = NULL;
 static IMP performActionForShortcutItem = NULL;
 void (*oldActivateShortcutItem)(id self, SEL _cmd,SBSApplicationShortcutItem *item, SBApplication *app);
 
-@interface SBSApplicationShortcutService : NSObject
--(void)updateDynamicApplicationShortcutItems:(NSArray <SBSApplicationShortcutItem *> *)items bundleIdentifier:(NSString *)bundleIdentifier;
-@end
-
 @interface SBApplication : NSObject
 @property (nonatomic,copy) NSArray *dynamicShortcutItems;
 -(NSString *)bundleIdentifier;
-@end
-
-@interface SBApplicationShortcutServer : NSObject
-+(instancetype)sharedInstance;
 @end
 
 @interface SBApplicationController : NSObject
