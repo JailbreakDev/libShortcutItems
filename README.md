@@ -14,9 +14,20 @@ In SpringBoard you register the items you want to add to applications.
 
 ```objc
 if ([LSIManager sharedManager].isRunningInsideSpringBoard) {
-	SBSApplicationShortcutItem *item = [[LSIManager sharedManager] newShortcutItemType:@"test_icon" title:@"Test" subtitle:@"Testing libShortcutItems" iconType:UIApplicationShortcutIconTypeAdd];
+	LSISBSApplicationShortcutItem *item = [[LSIManager sharedManager] newShortcutItemType:@"test_icon" title:@"Test" subtitle:@"Testing libShortcutItems" iconType:UIApplicationShortcutIconTypeAdd];
 	[[LSIManager sharedManager] addShortcutItems:@[item] toApplicationID:@"com.apple.Preferences"];
 }
+```
+
+You can also have a callback that won't open the app and is handled on SpringBoard
+
+```objc
+LSISBSApplicationShortcutItem *sbItem = [[LSIManager sharedManager] newShortcutItemType:@"test_sb_icon" title:@"Test" subtitle:@"Testing SpringBoard" iconType:UIApplicationShortcutIconTypeAdd];
+[sbItem setHandledBySpringBoard:YES];
+[[LSIManager sharedManager] addShortcutItems:@[sbItem] toApplicationID:@"com.apple.iBooks"];
+[[LSIManager sharedManager] setSBShortcutHandlerBlock:^(LSISBSApplicationShortcutItem *item) {
+	NSLog(@"Handled %@ on SpringBoard",item.localizedTitle);
+}];
 ```
 
 ### In Preferences (example) ###
