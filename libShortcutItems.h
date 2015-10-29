@@ -20,6 +20,7 @@ typedef void (^LSICallbackBlock)(LSIApplicationShortcutItem *item);
 @property (nonatomic) UIApplicationShortcutIconType iconType;
 @property (nonatomic,strong) LSICallback *callback;
 +(LSIApplicationShortcutItem *)newShortcutItemType:(NSString *)type title:(NSString *)title subtitle:(NSString *)subtitle iconType:(UIApplicationShortcutIconType)iconType;
++(LSIApplicationShortcutItem *)newShortcutItemType:(NSString *)type title:(NSString *)title subtitle:(NSString *)subtitle iconImage:(UIImage *)icon;
 @end
 
 @interface LSIManager : NSObject
@@ -27,7 +28,8 @@ typedef void (^LSICallbackBlock)(LSIApplicationShortcutItem *item);
 +(instancetype)sharedManager;
 -(void)addShortcutItems:(NSArray <LSIApplicationShortcutItem *> *)items toApplicationID:(NSString *)applicationID;
 -(void)addShortcutItem:(LSIApplicationShortcutItem *)item toApplicationID:(NSString *)applicationID;
--(void)removeShortcutItems:(NSArray <LSIApplicationShortcutItem *> *)items fromApplicationID:(NSString *)applicationID;
--(void)removeShortcutItem:(LSIApplicationShortcutItem *)item fromApplicationID:(NSString *)applicationID;
+-(BOOL)removeShortcutItems:(NSArray <LSIApplicationShortcutItem *> *)items fromApplicationID:(NSString *)applicationID;
+-(BOOL)removeShortcutItem:(LSIApplicationShortcutItem *)item fromApplicationID:(NSString *)applicationID;
+-(BOOL)removeShortcutItemType:(NSString *)itemType fromApplicationID:(NSString *)applicationID;
 -(void)addCallback:(LSICallback *)callback;
 @end
