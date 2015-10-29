@@ -9,3 +9,4 @@ layout/DEBIAN/.DS_Store
 layout/usr/.DS_Store
 layout/usr/include/.DS_Store
 layout/usr/include/libShortcutItems/.DS_Store
+dist.sh
