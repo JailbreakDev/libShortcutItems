@@ -15,7 +15,7 @@ void (*oldActivateShortcutItem)(id self, SEL _cmd, SBSApplicationShortcutItem *i
 
 @interface LSIApplicationShortcutItem ()
 @property (nonatomic,strong) SBSApplicationShortcutItem *item;
-@property (nonatomic,strong) SBSApplicationShortcutSystemIcon *icon;
+@property (nonatomic,strong) SBSApplicationShortcutIcon *icon;
 @end
 
 @implementation LSIApplicationShortcutItem
@@ -34,8 +34,21 @@ void (*oldActivateShortcutItem)(id self, SEL _cmd, SBSApplicationShortcutItem *i
 	[lsiItem setUserInfo:@{@"isCustomItem":@(TRUE)}];
 	[lsiItem setLocalizedTitle:title];
 	[lsiItem setLocalizedSubtitle:subtitle];
-	lsiItem.icon = [SBSApplicationShortcutSystemIcon alloc];
-	lsiItem.icon = [lsiItem.icon initWithType:iconType];
+	lsiItem.icon = (SBSApplicationShortcutSystemIcon *)[SBSApplicationShortcutSystemIcon alloc];
+	lsiItem.icon = [((SBSApplicationShortcutSystemIcon *)lsiItem.icon) initWithType:iconType];
+	[lsiItem.item setIcon:lsiItem.icon];
+	return lsiItem;
+}
+
++(LSIApplicationShortcutItem *)newShortcutItemType:(NSString *)type title:(NSString *)title subtitle:(NSString *)subtitle iconImage:(UIImage *)icon {
+  LSIApplicationShortcutItem *lsiItem = [[LSIApplicationShortcutItem alloc] init];
+	lsiItem.item = [[SBSApplicationShortcutItem alloc] init];
+	[lsiItem setType:type];
+	[lsiItem setUserInfo:@{@"isCustomItem":@(TRUE)}];
+	[lsiItem setLocalizedTitle:title];
+	[lsiItem setLocalizedSubtitle:subtitle];
+	lsiItem.icon = (SBSApplicationShortcutCustomImageIcon *)[SBSApplicationShortcutCustomImageIcon alloc];
+	lsiItem.icon = [((SBSApplicationShortcutCustomImageIcon *)lsiItem.icon) initWithImagePNGData:UIImagePNGRepresentation(icon)];
 	[lsiItem.item setIcon:lsiItem.icon];
 	return lsiItem;
 }
@@ -97,7 +110,7 @@ void (*oldActivateShortcutItem)(id self, SEL _cmd, SBSApplicationShortcutItem *i
 		_iconType = iconType;
 		_icon = nil;
 		_icon = [SBSApplicationShortcutSystemIcon alloc];
-		_icon = [_icon initWithType:iconType];
+		_icon = [((SBSApplicationShortcutSystemIcon *)_icon) initWithType:iconType];
 		[_item setIcon:_icon];
 	}
 }
@@ -190,12 +203,17 @@ void (*oldActivateShortcutItem)(id self, SEL _cmd, SBSApplicationShortcutItem *i
           continue;
         }
       }
-      UIApplicationShortcutIconType type = UIApplicationShortcutIconTypeAdd; //default type. will be changed later with other LSIApplicationShortcutItem types
+      LSIApplicationShortcutItem *item = nil;
       if (uiItem.icon.sbsShortcutIcon && [uiItem.icon.sbsShortcutIcon isKindOfClass:objc_getClass("SBSApplicationShortcutSystemIcon")]) {
-        type = ((SBSApplicationShortcutSystemIcon *)uiItem.icon.sbsShortcutIcon).type;
+        UIApplicationShortcutIconType type = ((SBSApplicationShortcutSystemIcon *)uiItem.icon.sbsShortcutIcon).type;
+        item = [LSIApplicationShortcutItem newShortcutItemType:uiItem.type title:uiItem.localizedTitle subtitle:uiItem.localizedSubtitle iconType:type];
+      } else if ([uiItem.icon.sbsShortcutIcon isKindOfClass:objc_getClass("SBSApplicationShortcutCustomImageIcon")]) {
+        UIImage *iconImage = [UIImage imageWithData:((SBSApplicationShortcutCustomImageIcon *)uiItem.icon.sbsShortcutIcon).imagePNGData];
+        item = [LSIApplicationShortcutItem newShortcutItemType:uiItem.type title:uiItem.localizedTitle subtitle:uiItem.localizedSubtitle iconImage:iconImage];
       }
-      LSIApplicationShortcutItem *item = [LSIApplicationShortcutItem newShortcutItemType:uiItem.type title:uiItem.localizedTitle subtitle:uiItem.localizedSubtitle iconType:type];
-      callback.callbackBlock(item);
+      if (item) {
+        callback.callbackBlock(item);
+      }
 		}
 	}
 }
@@ -251,7 +269,9 @@ void activateShortcutItem(id self, SEL _cmd, SBSApplicationShortcutItem *item, S
 	if ([[item.userInfo objectForKey:@"isCustomItem"] boolValue]) {
 		NSArray <LSIApplicationShortcutItem *> *itemsForApp = [[LSIManager sharedManager].customDynamicShortcuts objectForKey:[app bundleIdentifier]];
 		if (itemsForApp && itemsForApp.count > 0) {
-			NSArray <LSIApplicationShortcutItem *> *filteredItems = [itemsForApp filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self.item.type = %@",item.type]];
+			NSArray <LSIApplicationShortcutItem *> *filteredItems = [itemsForApp filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(LSIApplicationShortcutItem *lsiItem, NSDictionary *bindings) {
+          return (lsiItem.type == item.type);
+      }]];
 			BOOL ignoreItem = (filteredItems.count == 0);
 			if (!ignoreItem) {
 				LSIApplicationShortcutItem *lsiItem = (LSIApplicationShortcutItem *)[filteredItems firstObject];
@@ -276,7 +296,9 @@ void activateShortcutItem(id self, SEL _cmd, SBSApplicationShortcutItem *item, S
 	NSMutableArray *items = [originalValue mutableCopy];
 	NSArray *newShortcutItems = [[LSIManager sharedManager].customDynamicShortcuts objectForKey:[app bundleIdentifier]];
 	if (newShortcutItems) {
-			NSArray *validItems = [newShortcutItems filteredArrayUsingPredicate:[NSPredicate predicateWithFormat:@"self.item != nil"]];
+			NSArray *validItems = [newShortcutItems filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(LSIApplicationShortcutItem *item, NSDictionary *bindings) {
+        return (item != nil);
+      }]];
 			NSArray *sbsItems = [validItems valueForKey:@"item"];
 			if (sbsItems && sbsItems.count > 0) {
 				[items addObjectsFromArray:sbsItems];
@@ -286,6 +308,14 @@ void activateShortcutItem(id self, SEL _cmd, SBSApplicationShortcutItem *item, S
 }
 
 #pragma mark - API
+
+-(LSIApplicationShortcutItem *)itemForType:(NSString *)type forApplicationID:(NSString *)applicationID {
+  NSMutableArray *existingItems = [_customDynamicShortcuts[applicationID] mutableCopy] ?: [NSMutableArray array];
+  NSArray *filteredItems = [existingItems filteredArrayUsingPredicate:[NSPredicate predicateWithBlock:^BOOL(LSIApplicationShortcutItem  *obj, NSDictionary *bindings) {
+      return (obj.type == type);
+  }]];
+  return (LSIApplicationShortcutItem *)[filteredItems firstObject];
+}
 
 -(void)addShortcutItems:(NSArray <LSIApplicationShortcutItem *> *)items toApplicationID:(NSString *)applicationID {
 	if (!_customDynamicShortcuts) {
@@ -300,17 +330,29 @@ void activateShortcutItem(id self, SEL _cmd, SBSApplicationShortcutItem *item, S
 	[self addShortcutItems:@[item] toApplicationID:applicationID];
 }
 
--(void)removeShortcutItems:(NSArray <LSIApplicationShortcutItem *> *)items fromApplicationID:(NSString *)applicationID {
+-(BOOL)removeShortcutItems:(NSArray <LSIApplicationShortcutItem *> *)items fromApplicationID:(NSString *)applicationID {
   if (!_customDynamicShortcuts) {
-    return;
+    return FALSE;
   }
-  NSMutableArray *existingItems = [_customDynamicShortcuts[applicationID] mutableCopy] ?: [NSMutableArray array];
+  NSMutableArray *existingItems = [_customDynamicShortcuts[applicationID] mutableCopy];
+  if (existingItems == nil) {
+    return FALSE;
+  }
   [existingItems removeObjectsInArray:items];
   [_customDynamicShortcuts setObject:existingItems forKey:applicationID];
+  return TRUE;
 }
 
--(void)removeShortcutItem:(LSIApplicationShortcutItem *)item fromApplicationID:(NSString *)applicationID {
-  [self removeShortcutItems:@[item] fromApplicationID:applicationID];
+-(BOOL)removeShortcutItem:(LSIApplicationShortcutItem *)item fromApplicationID:(NSString *)applicationID {
+  return [self removeShortcutItems:@[item] fromApplicationID:applicationID];
+}
+
+-(BOOL)removeShortcutItemType:(NSString *)itemType fromApplicationID:(NSString *)applicationID {
+  LSIApplicationShortcutItem *item = [self itemForType:itemType forApplicationID:applicationID];
+  if (item) {
+    return [self removeShortcutItem:item fromApplicationID:applicationID];
+  }
+  return FALSE;
 }
 
 -(void)addCallback:(LSICallback *)callback {
