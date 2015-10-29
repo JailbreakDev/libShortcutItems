@@ -9,6 +9,7 @@ typedef void (^LSICallbackBlock)(LSIApplicationShortcutItem *item);
 @property (nonatomic,getter=isHandledOnSpringBoard,readonly) BOOL handledOnSpringBoard;
 @property (nonatomic,copy) LSICallbackBlock callbackBlock;
 +(instancetype)callbackWithBlock:(LSICallbackBlock)block;
++(instancetype)callbackWithBlock:(LSICallbackBlock)block forIdentifiers:(NSArray *)identifiers;
 @end
 
 @interface LSIApplicationShortcutItem : NSObject
@@ -26,5 +27,7 @@ typedef void (^LSICallbackBlock)(LSIApplicationShortcutItem *item);
 +(instancetype)sharedManager;
 -(void)addShortcutItems:(NSArray <LSIApplicationShortcutItem *> *)items toApplicationID:(NSString *)applicationID;
 -(void)addShortcutItem:(LSIApplicationShortcutItem *)item toApplicationID:(NSString *)applicationID;
+-(void)removeShortcutItems:(NSArray <LSIApplicationShortcutItem *> *)items fromApplicationID:(NSString *)applicationID;
+-(void)removeShortcutItem:(LSIApplicationShortcutItem *)item fromApplicationID:(NSString *)applicationID;
 -(void)addCallback:(LSICallback *)callback;
 @end

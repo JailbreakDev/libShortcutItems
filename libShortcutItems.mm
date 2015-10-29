@@ -104,9 +104,14 @@ void (*oldActivateShortcutItem)(id self, SEL _cmd, SBSApplicationShortcutItem *i
 
 @end
 
+@interface LSICallback()
+@property (nonatomic,strong) NSArray *itemIdentifiers;
+@end
+
 @implementation LSICallback
 @synthesize callbackBlock = _callbackBlock;
 @synthesize handledOnSpringBoard = _handledOnSpringBoard;
+@synthesize itemIdentifiers = _itemIdentifiers;
 
 -(instancetype)initWithBlock:(LSICallbackBlock)block handledOnSpringBoard:(BOOL)sb {
 	self = [super init];
@@ -115,6 +120,14 @@ void (*oldActivateShortcutItem)(id self, SEL _cmd, SBSApplicationShortcutItem *i
 		_handledOnSpringBoard = sb;
 	}
 	return self;
+}
+
++(instancetype)callbackWithBlock:(LSICallbackBlock)block forIdentifiers:(NSArray *)identifiers {
+  LSICallback *callback = [[LSICallback alloc] initWithBlock:block handledOnSpringBoard:[LSIManager sharedManager].isRunningInsideSpringBoard];
+  if (callback) {
+    callback.itemIdentifiers = identifiers;
+  }
+  return callback;
 }
 
 +(instancetype)callbackWithBlock:(LSICallbackBlock)block {
@@ -172,12 +185,17 @@ void (*oldActivateShortcutItem)(id self, SEL _cmd, SBSApplicationShortcutItem *i
 	}
 	for (LSICallback *callback in _callbacks) {
 		if (callback.callbackBlock && !callback.isHandledOnSpringBoard) {
-			UIApplicationShortcutIconType type = UIApplicationShortcutIconTypeAdd; //default type. will be changed later with other LSIApplicationShortcutItem types
-			if (uiItem.icon.sbsShortcutIcon && [uiItem.icon.sbsShortcutIcon isKindOfClass:objc_getClass("SBSApplicationShortcutSystemIcon")]) {
-				type = ((SBSApplicationShortcutSystemIcon *)uiItem.icon.sbsShortcutIcon).type;
-			}
-			LSIApplicationShortcutItem *item = [LSIApplicationShortcutItem newShortcutItemType:uiItem.type title:uiItem.localizedTitle subtitle:uiItem.localizedSubtitle iconType:type];
-			callback.callbackBlock(item);
+      if (callback.itemIdentifiers && callback.itemIdentifiers.count > 0) {
+        if (![callback.itemIdentifiers containsObject:uiItem.type]) {
+          continue;
+        }
+      }
+      UIApplicationShortcutIconType type = UIApplicationShortcutIconTypeAdd; //default type. will be changed later with other LSIApplicationShortcutItem types
+      if (uiItem.icon.sbsShortcutIcon && [uiItem.icon.sbsShortcutIcon isKindOfClass:objc_getClass("SBSApplicationShortcutSystemIcon")]) {
+        type = ((SBSApplicationShortcutSystemIcon *)uiItem.icon.sbsShortcutIcon).type;
+      }
+      LSIApplicationShortcutItem *item = [LSIApplicationShortcutItem newShortcutItemType:uiItem.type title:uiItem.localizedTitle subtitle:uiItem.localizedSubtitle iconType:type];
+      callback.callbackBlock(item);
 		}
 	}
 }
@@ -280,6 +298,19 @@ void activateShortcutItem(id self, SEL _cmd, SBSApplicationShortcutItem *item, S
 
 -(void)addShortcutItem:(LSIApplicationShortcutItem *)item toApplicationID:(NSString *)applicationID {
 	[self addShortcutItems:@[item] toApplicationID:applicationID];
+}
+
+-(void)removeShortcutItems:(NSArray <LSIApplicationShortcutItem *> *)items fromApplicationID:(NSString *)applicationID {
+  if (!_customDynamicShortcuts) {
+    return;
+  }
+  NSMutableArray *existingItems = [_customDynamicShortcuts[applicationID] mutableCopy] ?: [NSMutableArray array];
+  [existingItems removeObjectsInArray:items];
+  [_customDynamicShortcuts setObject:existingItems forKey:applicationID];
+}
+
+-(void)removeShortcutItem:(LSIApplicationShortcutItem *)item fromApplicationID:(NSString *)applicationID {
+  [self removeShortcutItems:@[item] fromApplicationID:applicationID];
 }
 
 -(void)addCallback:(LSICallback *)callback {
