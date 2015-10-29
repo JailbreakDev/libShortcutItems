@@ -13,6 +13,7 @@
 @end
 
 @interface SBSApplicationShortcutCustomImageIcon : SBSApplicationShortcutIcon
+@property (nonatomic, readonly, retain) NSData *imagePNGData;
 -(instancetype)initWithImagePNGData:(NSData *)imageData;
 @end
 
